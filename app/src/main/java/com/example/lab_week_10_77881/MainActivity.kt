@@ -1,39 +1,27 @@
 package com.example.lab_week_10_77881
 
 import android.os.Bundle
-import androidx.activity.enableEdgeToEdge
-import androidx.appcompat.app.AppCompatActivity
-import androidx.core.view.ViewCompat
-import androidx.core.view.WindowInsetsCompat
 import android.widget.Button
 import android.widget.TextView
+import android.widget.Toast
+import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.ViewModelProvider
-import com.example.lab_week_10_77881.viewmodels.TotalViewModel
-import com.example.lab_week_10_77881.R
-import com.example.lab_week_10_77881.database.TotalDatabase
-import kotlin.getValue
 import androidx.room.Room
 import com.example.lab_week_10_77881.database.Total
+import com.example.lab_week_10_77881.database.TotalDatabase
+import com.example.lab_week_10_77881.database.TotalObject
+import com.example.lab_week_10_77881.viewmodels.TotalViewModel
+import java.util.*
 
 class MainActivity : AppCompatActivity() {
 
-    // Create an instance of the TotalDatabase
-    // by lazy is used to create the database only when it's needed
     private val db by lazy { prepareDatabase() }
-
-    // Create an instance of the TotalViewModel
-    // by lazy is used to create the ViewModel only when it's needed
-    private val viewModel by lazy {
-        ViewModelProvider(this)[TotalViewModel::class.java]
-    }
+    private val viewModel by lazy { ViewModelProvider(this)[TotalViewModel::class.java] }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
-
-        // Initialize the value of the total from the database
         initializeValueFromDatabase()
-
         prepareViewModel()
     }
 
@@ -43,51 +31,56 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun prepareViewModel() {
-        // Observe the LiveData object
-        viewModel.total.observe(this, {
-            // Whenever the value of the LiveData object changes
-            // the updateText() is called, with the new value as the parameter
+        viewModel.total.observe(this) {
             updateText(it)
-        })
+        }
         findViewById<Button>(R.id.button_increment).setOnClickListener {
             viewModel.incrementTotal()
         }
     }
 
-    // Create and build the TotalDatabase with the name 'total-database'
-    // allowMainThreadQueries() is used to allow queries to be run on the main thread
-    // This is not recommended, but for simplicity it's used here
     private fun prepareDatabase(): TotalDatabase {
         return Room.databaseBuilder(
             applicationContext,
             TotalDatabase::class.java, "total-database"
-        ).allowMainThreadQueries().build()
+        )
+            .fallbackToDestructiveMigration()
+            .allowMainThreadQueries()
+            .build()
     }
 
-    // Initialize the value of the total from the database
-    // If the database is empty, insert a new Total object with the value of 0
-    // If the database is not empty, get the value of the total from the database
     private fun initializeValueFromDatabase() {
-        val total = db.totalDao().getTotal(ID)
-        if (total.isEmpty()) {
-            db.totalDao().insert(Total(id = 1, total = 0))
+        val totalList = db.totalDao().getTotal(ID)
+        if (totalList.isEmpty()) {
+            db.totalDao().insert(
+                Total(
+                    id = ID,
+                    total = TotalObject(0, Date().toString())
+                )
+            )
+            viewModel.setTotal(0)
         } else {
-            viewModel.setTotal(total.first().total)
+            viewModel.setTotal(totalList.first().total.value)
         }
     }
 
-    // Update the value of the total in the database
-    // whenever the activity is paused
-    // This is done to ensure that the value of the total is always up to date
-    // even if the app is closed
     override fun onPause() {
         super.onPause()
-        db.totalDao().update(Total(ID, viewModel.total.value!!))
+        val newTotal = TotalObject(
+            value = viewModel.total.value ?: 0,
+            date = Date().toString()
+        )
+        db.totalDao().update(Total(ID, newTotal))
     }
 
-    // The ID of the Total object in the database
-    // For simplicity, we only have one Total object in the database
-    // So the ID is always 1
+    override fun onStart() {
+        super.onStart()
+        val total = db.totalDao().getTotal(ID)
+        if (total.isNotEmpty()) {
+            Toast.makeText(this, "Last updated: ${total.first().total.date}", Toast.LENGTH_LONG).show()
+        }
+    }
+
     companion object {
         const val ID: Long = 1
     }

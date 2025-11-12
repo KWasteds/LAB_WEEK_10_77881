@@ -1,27 +1,26 @@
 package com.example.lab_week_10_77881.database
 
-import androidx.room.*
-
-// Create an Entity with a table name of "total"
-// You can add ForeignKeys as a second parameter to set the foreign keys
-// You can also add PrimaryKeys as a second parameter to set the primary keys
+import androidx.room.ColumnInfo
+import androidx.room.Embedded
+import androidx.room.Entity
+import androidx.room.PrimaryKey
 
 @Entity(tableName = "total")
-
-// Every variables declared inside this class counts
-// as declaring a new column inside the table
-
-class Total(
-    // @PrimaryKey sets a column into a primary key
+data class Total(
     @PrimaryKey(autoGenerate = true)
-
-    // @ColumnInfo sets the name of the column
     @ColumnInfo(name = "id")
-
-    // The variable name can be different from the column name
     val id: Long = 0,
 
-    // Here we set another column to store the total value
-    @ColumnInfo(name = "total")
-    val total: Int = 0,
+    // @Embedded means these values will be flattened into the table
+    @Embedded
+    val total: TotalObject
+)
+
+// This is the embedded object holding 2 fields
+data class TotalObject(
+    @ColumnInfo(name = "value")
+    val value: Int,
+
+    @ColumnInfo(name = "date")
+    val date: String
 )
